@@ -22,8 +22,10 @@ use solidcore::curve::curve::Curve;
 use solidcore::geom::attribute::{AttributeStore, ObjectKey};
 use solidcore::geom::axis2_placement::Axis2Placement;
 use solidcore::intersect::point_class::PointClassType;
-use solidcore::mass::integrator::properties::brep_mass_properties;
-use solidcore::mass::integrator::properties::{PropertyAttributes, brep_area, brep_volume};
+use solidcore::mass::integrator::properties::{
+    EstimatedMassProperties, MassPropertyRequest, MomentsAbout, PropertyAttributes, brep_area,
+    brep_mass_properties_estimated, brep_volume,
+};
 use solidcore::nurbs::b_spline_curve::BSplineCurveForm;
 use solidcore::offset::offset_executive::p2::{
     OffsetOptions, ShellOptions, offset_brep_simple, shell_brep_simple,
@@ -838,19 +840,23 @@ impl Solidcore {
     }
 }
 
-/// Mass properties at unit density, the moments about `origin`.
-fn mass(
-    k: &solidcore::Kernel,
-    b: &mut Brep,
-    origin: Point3,
-) -> Result<solidcore::mass::integrator::properties::MassProperties, Refusal> {
+/// The sum over `b`'s material regions, so lumps that touch along an edge or at a point measure
+/// too, with the second moments about the centroid.
+fn mass(k: &solidcore::Kernel, b: &mut Brep) -> Result<EstimatedMassProperties, Refusal> {
     let store = AttributeStore::new();
     let key_of = |_| ObjectKey(0);
     let attrs = PropertyAttributes {
         store: &store,
         key_of: &key_of,
     };
-    brep_mass_properties(k, b, ACCURACY, 1.0, origin, &attrs).map_err(err)
+    let request = MassPropertyRequest {
+        density: 1.0,
+        moments_about: MomentsAbout::Centroid,
+        manifold_solid_only: false,
+        sheet_faces_area: false,
+        area_centroid_without_material: false,
+    };
+    brep_mass_properties_estimated(k, b, ACCURACY, &request, &attrs).map_err(err)
 }
 
 impl brep_protocol::Kernel for Solidcore {
@@ -915,7 +921,7 @@ impl brep_protocol::Kernel for Solidcore {
             return Ok(None);
         }
         let k = &self.0;
-        let c = mass(k, &mut s.brep.borrow_mut(), Point3::new(0.0, 0.0, 0.0))?.centroid;
+        let c = mass(k, &mut s.brep.borrow_mut())?.centroid;
         Ok(Some([c.x, c.y, c.z]))
     }
 
@@ -924,12 +930,7 @@ impl brep_protocol::Kernel for Solidcore {
             return Ok([[0.0; 3]; 3]);
         }
         let k = &self.0;
-        let b = &mut s.brep.borrow_mut();
-        let c = mass(k, b, Point3::new(0.0, 0.0, 0.0))?.centroid;
-        // About the centroid: axial moments, and the raw products yz, zx and xy.
-        let m = mass(k, b, c)?;
-        let (i, p) = (m.inertia, m.products);
-        Ok([[i.x, -p.z, -p.y], [-p.z, i.y, -p.x], [-p.y, -p.x, i.z]])
+        Ok(mass(k, &mut s.brep.borrow_mut())?.inertia_tensor())
     }
 
     fn transform(&mut self, s: &Solid, matrix: [[f64; 4]; 3]) -> Result<Solid, Refusal> {
@@ -1001,7 +1002,7 @@ impl brep_protocol::Kernel for Solidcore {
         points
             .iter()
             .map(|&p| {
-                let pc = c.point_3d_classify(k, p3(p), 1e-7, false).map_err(err)?;
+                let pc = c.point_3d_classify(k, p3(p), 1e-7, true).map_err(err)?;
                 // A point in a region is in when the region is material; any other class the
                 // kernel gives is a place on the boundary: a face, an edge or a vertex.
                 Ok(match (pc.point_class(), pc.object()) {

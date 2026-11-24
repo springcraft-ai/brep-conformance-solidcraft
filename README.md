@@ -37,8 +37,10 @@ asks, and lists the rest as unsupported. It builds the suite's box, cylinder, ba
 with solidcore's primitives; its extrusions and revolutions as linear and rotational sweeps of
 curves, splines clamped by knot insertion first; its sweeps along the path as one rational quadratic
 B-spline; and its lofts as skins, ruled or through every section. Each is built at the origin and
-moved onto its frame. It answers the booleans, volume, area, mass properties and validity check with
-solidcore's own, and classifies points with its B-rep classifier; fillets, one radius or one per
+moved onto its frame. It answers the booleans, volume, area, mass properties (summed over the
+material regions, so lumps that touch measure too) and validity check with solidcore's own, and
+classifies points with its B-rep classifier, which first finds a vertex, edge or face the point lies
+on; fillets, one radius or one per
 edge, and variable fillets with its fillet executive, on the edges the points name and no others;
 offsets and shells with its offset executive; and any similarity with its transform, a mirror as a
 scale of −1, and any other affine map with its matrix transform. The bounding box is solidcore's
