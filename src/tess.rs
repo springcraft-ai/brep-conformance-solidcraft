@@ -1,5 +1,5 @@
-//! Meshes by SolidCraft's mesher, on its strict path: a face it cannot mesh within the tolerance
-//! is an error, not a face filled leniently or left out.
+//! Meshes by SolidCraft's mesher, on its strict path: a face it cannot mesh is an error, not a
+//! face filled leniently or left out.
 
 use brep_protocol::{Display, DisplayEdge, DisplayFace, Mesh, Refusal};
 use solidcore::{Brep, Kernel};
@@ -19,7 +19,7 @@ fn tess_err(e: solidcore_tess::TessError) -> Refusal {
 /// trims to `b`, so `b` is a build of its own.
 fn planned(k: &mut Kernel, b: &mut Brep, tolerance: f64) -> Result<(TessPlan, usize), Refusal> {
     let (record, _) = record_of(k, b)?;
-    // A size of 0 sets no floor under the chord: the tolerance asked is the one met.
+    // A size of 0 sets no floor under the chord, so the mesher aims at the tolerance asked.
     let (plan, _) =
         solidcore_tess::mesh(&record, &MeshSpec::chord(tolerance), 0.0, None).map_err(tess_err)?;
     Ok((plan, record.faces.len()))

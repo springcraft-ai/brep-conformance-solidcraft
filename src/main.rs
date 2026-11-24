@@ -363,6 +363,9 @@ fn build(k: &mut solidcore::Kernel, r: &Recipe) -> Result<Brep, Refusal> {
             front,
         } => {
             let b = build(k, base)?;
+            if is_empty(&b) {
+                return Ok(b);
+            }
             // The plane's tool reaches past the body wherever the plane meets it.
             let bounds = brep_bounding_box(k, &b, true).map_err(err)?;
             let (lo, hi) = (bounds.min(), bounds.max());
@@ -1079,12 +1082,17 @@ impl brep_protocol::Kernel for Solidcore {
     }
 
     fn affine(&mut self, s: &Solid, matrix: [[f64; 4]; 3]) -> Result<Solid, Refusal> {
+        let col = |j: usize| Vec3::new(matrix[0][j], matrix[1][j], matrix[2][j]);
+        let det = col(0).dot(col(1).cross(col(2)));
+        if !det.is_finite() || det == 0.0 {
+            return Err(Refusal::invalid("a singular map"));
+        }
         self.solid(Recipe::Affine(matrix, s.recipe.clone()))
     }
 
     fn union_all(&mut self, solids: &[&Solid]) -> Result<Solid, Refusal> {
         if solids.len() < 2 {
-            return Err("a union of many takes two solids or more".into());
+            return Err(Refusal::invalid("a union of many takes two solids or more"));
         }
         let all = solids.iter().map(|s| s.recipe.clone()).collect();
         self.solid(Recipe::All(Op::Union, all))
@@ -1092,7 +1100,9 @@ impl brep_protocol::Kernel for Solidcore {
 
     fn difference_all(&mut self, target: &Solid, tools: &[&Solid]) -> Result<Solid, Refusal> {
         if tools.is_empty() {
-            return Err("a difference of many takes one tool or more".into());
+            return Err(Refusal::invalid(
+                "a difference of many takes one tool or more",
+            ));
         }
         let mut all: Vec<_> = tools.iter().map(|s| s.recipe.clone()).collect();
         all.push(target.recipe.clone());
@@ -1115,7 +1125,9 @@ impl brep_protocol::Kernel for Solidcore {
         distances: &[f64],
     ) -> Result<Solid, Refusal> {
         if edges.is_empty() || distances.len() != edges.len() {
-            return Err("a chamfer names an edge and a distance for each".into());
+            return Err(Refusal::invalid(
+                "a chamfer names an edge and a distance for each",
+            ));
         }
         self.solid(Recipe::Chamfer {
             base: s.recipe.clone(),
@@ -1199,6 +1211,10 @@ impl brep_protocol::Kernel for Solidcore {
         origin: model::Vec3,
         normal: model::Vec3,
     ) -> Result<(Solid, Solid), Refusal> {
+        let n = v3(normal).length();
+        if !n.is_finite() || n == 0.0 {
+            return Err(Refusal::invalid("the plane's normal has no length"));
+        }
         let side = |front| Recipe::Split {
             base: s.recipe.clone(),
             origin,
@@ -1250,8 +1266,10 @@ impl brep_protocol::Kernel for Solidcore {
     // (solidcraft-kernel). The others are left out, so that what is scored is SolidCraft:
     //
     // - None of those crates has a call for them: fillet_conic, fillet_faces, full_round,
-    //   move_faces, interference, betti, section_area, screw, slab and sweep_path.
+    //   move_faces, interference, betti, section_area, slab and sweep_path.
     // - Its call answers another question than the protocol's:
+    //   - screw: its screw sweep takes B-spline profile curves only, and lifts each wall within a
+    //     tolerance of its screw surface; the protocol asks for the exact surface.
     //   - fillet_g2: the curvature-continuous round takes one size, at the equal-area thumbweight;
     //     the protocol also sets the radius at its middle.
     //   - fillet_setback_g2: its set-back corner patch meets curvature-continuous rounds only

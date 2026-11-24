@@ -82,7 +82,8 @@ pub fn chamfer_two(
 }
 
 /// The edges the points lie on rounded by `radius`, the rounds stopping `setback` short of each
-/// vertex where three or more of them meet, its corner filled by the kernel.
+/// vertex where three or more of them meet, its corner filled by the kernel. Without such a
+/// vertex it is a plain round.
 pub fn fillet_setback(
     k: &mut Kernel,
     b: Brep,
@@ -90,7 +91,9 @@ pub fn fillet_setback(
     radius: f64,
     setback: f64,
 ) -> Result<Brep, Refusal> {
-    let edges = edges_at(k, &b, at)?;
+    let mut edges = edges_at(k, &b, at)?;
+    edges.sort_unstable();
+    edges.dedup();
     let mut ends: Vec<VertexId> = Vec::new();
     for &e in &edges {
         ends.extend(solidcore::query::edge::edge_vertices(&b, e).map_err(err)?);
@@ -100,9 +103,6 @@ pub fn fillet_setback(
         if !corners.contains(v) && ends.iter().filter(|w| *w == v).count() >= 3 {
             corners.push(*v);
         }
-    }
-    if corners.is_empty() {
-        return Err(Refusal::invalid("no vertex where three of the edges meet"));
     }
     let br = bridged(k, b)?;
     let edges = br.edges(&edges)?;
@@ -206,7 +206,7 @@ pub fn split(
     let br = bridged(k, b)?;
     let Some((behind, ahead)) = split_body(&br.body, &tool).map_err(ops_err)? else {
         return Err(Refusal::failed(
-            "the split leaves a side empty, or the plane does not cut the body through",
+            "the split leaves a side empty, or the plane only nicks the body",
         ));
     };
     body_brep(k, if front { &ahead } else { &behind })

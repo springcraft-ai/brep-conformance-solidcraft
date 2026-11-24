@@ -1,5 +1,6 @@
 //! The kernel's B-rep as SolidCraft's other layers take it: the portable record, and the modelling
-//! layer's body built from that record. Each conversion only copies; none computes geometry.
+//! layer's body built from that record. A conversion copies the geometry, and adds to the B-rep
+//! the UV trims that the record needs.
 
 use brep_protocol::Refusal;
 use solidcore::{Brep, EdgeId, FaceId, Kernel, VertexId};
@@ -12,7 +13,10 @@ pub fn convert_err(e: solidcore_convert::brep::Unsupported) -> Refusal {
 }
 
 pub fn ops_err(e: solidcore_ops::Error) -> Refusal {
-    Refusal::failed(format!("{e:?}"))
+    match e {
+        solidcore_ops::Error::Argument => Refusal::invalid(e.to_string()),
+        _ => Refusal::failed(format!("{e:?}")),
+    }
 }
 
 /// The record of `b`, with which of its faces, edges and vertices each record index is.

@@ -40,8 +40,8 @@ B-spline; and its lofts as skins, ruled or through every section. Each is built 
 moved onto its frame. It answers the booleans, volume, area, mass properties (summed over the
 material regions, so lumps that touch measure too) and validity check with solidcore's own, and
 classifies points with its B-rep classifier, which first finds a vertex, edge or face the point lies
-on; fillets, one radius or one per
-edge, and variable fillets with its fillet executive, on the edges the points name and no others;
+on; fillets, one radius or one per edge, and variable fillets with its fillet executive, on the
+edges the points name and no others;
 offsets and shells with its offset executive; and any similarity with its transform, a mirror as a
 scale of −1, and any other affine map with its matrix transform. The bounding box is solidcore's
 tight box. A plane section is solidcore's planar section curves, each sampled until every chord's
@@ -55,7 +55,8 @@ its modelling layer, solidcore-ops; [`src/exchange.rs`](src/exchange.rs) reads S
 boundary's importer, solidcraft-kernel, and writes it with solidcore-step;
 [`src/tess.rs`](src/tess.rs) meshes with its mesher, solidcore-tess, on the strict path that refuses
 a face it cannot mesh; and [`src/query.rs`](src/query.rs) measures curvature with the modelling
-layer's query. These crates take a body as SolidCraft's portable record, and
+layer's query. A set-back round with no vertex where three of its edges meet is a plain round.
+These crates take a body as SolidCraft's portable record, and
 [`src/record.rs`](src/record.rs) converts to and from it. The modelling layer runs each call on a
 kernel of its own, at solidcore's default tolerances.
 
@@ -93,8 +94,22 @@ what is scored is SolidCraft:
   a tolerance.
 - A STEP file of several solids: its importer reads each as a body of its own, and joining them into
   one solid set is another call.
-- Conic rounds, rounds between faces, full rounds, face moves, screws, slabs and sweeps along a
-  spline: no call.
+- Screws: its screw sweep takes B-spline profile curves only, and lifts each wall within a
+  tolerance of its screw surface, where the protocol asks for the exact surface.
+- Conic rounds, rounds between faces, full rounds, face moves, slabs and sweeps along a spline: no
+  call.
+
+Supported, with behaviour of SolidCraft's that the suite scores:
+
+- A split by a plane that misses the body gives the whole body on both sides, where the protocol
+  asks for the body on one side and nothing on the other.
+- Curvature at a crease is the nearest face's, where the protocol asks for none; in a hole its sign
+  is reversed.
+- With its boundary check, the classifier calls a point "on" up to the bodies' 1e-5 mm tolerance
+  off a face, though the adapter asks for 1e-7 mm.
+- Its record reader refuses a plane whose axes are about 5e-16 off square, as a rotation or the
+  modelling layer leaves them, so the calls through the record refuse such bodies.
+- Its STEP reader refuses the cones that its writer writes.
 
 A boolean consumes its operands, and `Brep::clone` keeps the original's geometry owners, which
 solidcore's checker rejects in the copy and in anything built from it. So the adapter keeps how each
@@ -128,12 +143,13 @@ The adapter in this repository is under either the MIT licence
 Either licence covers the adapter and nothing else. It does not cover the kernel, and nothing here
 relicenses the kernel.
 
-solidcore is a separate work under its own licence. Its crate in SolidCraft's repository declares
-`Apache-2.0`; that repository is the authority on that, not this page.
+SolidCraft's crates are separate works under their own licences. In SolidCraft's repository the
+solidcore crates declare `Apache-2.0`, and solidcraft-kernel declares `MIT OR Apache-2.0`; that
+repository is the authority on that, not this page.
 
 Building the adapter downloads SolidCraft's repository at the pinned commit and links its solidcore
-crate in, so a built adapter contains solidcore and is subject to solidcore's terms as well as this
-repository's.
+crates and solidcraft-kernel in, so a built adapter contains them and is subject to their terms as
+well as this repository's.
 
 ## Contributing
 
