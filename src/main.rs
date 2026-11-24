@@ -1,6 +1,12 @@
 //! The SolidCraft adapter: answers the B-rep protocol's requests on stdin and stdout with the
 //! solidcore kernel SolidCraft ships, so the conformance suite can drive that kernel.
 
+mod edit;
+mod exchange;
+mod query;
+mod record;
+mod tess;
+
 use std::cell::RefCell;
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -16,8 +22,10 @@ use solidcore::curve::curve::Curve;
 use solidcore::geom::attribute::{AttributeStore, ObjectKey};
 use solidcore::geom::axis2_placement::Axis2Placement;
 use solidcore::intersect::point_class::PointClassType;
-use solidcore::mass::integrator::properties::brep_mass_properties;
-use solidcore::mass::integrator::properties::{PropertyAttributes, brep_area, brep_volume};
+use solidcore::mass::integrator::properties::{
+    EstimatedMassProperties, MassPropertyRequest, MomentsAbout, PropertyAttributes, brep_area,
+    brep_mass_properties_estimated, brep_volume,
+};
 use solidcore::nurbs::b_spline_curve::BSplineCurveForm;
 use solidcore::offset::offset_executive::p2::{
     OffsetOptions, ShellOptions, offset_brep_simple, shell_brep_simple,
@@ -133,6 +141,60 @@ enum Recipe {
         profiles: Vec<profile::Profile>,
         heights: Vec<f64>,
     },
+    /// Mapped by the rows `[M | t]`, `M` any invertible matrix.
+    Affine([[f64; 4]; 3], Rc<Recipe>),
+    /// The boolean of every solid in one call, a difference's target last.
+    All(Op, Vec<Rc<Recipe>>),
+    /// Edges named by points bevelled each by its own distance.
+    Chamfer {
+        base: Rc<Recipe>,
+        edges: Vec<model::Vec3>,
+        sizes: Vec<f64>,
+    },
+    /// One edge bevelled `d1` along the face `face` lies on and `d2` along the other.
+    ChamferTwo {
+        base: Rc<Recipe>,
+        edge: model::Vec3,
+        face: model::Vec3,
+        d1: f64,
+        d2: f64,
+    },
+    /// Edges rounded by `radius`, stopping `setback` short of the corners where three meet.
+    Setback {
+        base: Rc<Recipe>,
+        edges: Vec<model::Vec3>,
+        radius: f64,
+        setback: f64,
+    },
+    /// Faces moved `distance` along their outward normals.
+    OffsetFaces {
+        base: Rc<Recipe>,
+        faces: Vec<model::Vec3>,
+        distance: f64,
+    },
+    /// Faces tilted by `angle` about the plane through `origin` square to `pull`.
+    Draft {
+        base: Rc<Recipe>,
+        faces: Vec<model::Vec3>,
+        origin: model::Vec3,
+        pull: model::Vec3,
+        angle: f64,
+    },
+    /// Faces taken out, the hole closed by the surfaces round it.
+    DeleteFaces {
+        base: Rc<Recipe>,
+        faces: Vec<model::Vec3>,
+    },
+    /// One side of a split by the plane through `origin` square to `normal`: the side the normal
+    /// points to when `front`.
+    Split {
+        base: Rc<Recipe>,
+        origin: model::Vec3,
+        normal: model::Vec3,
+        front: bool,
+    },
+    /// The one solid of a STEP file.
+    Step(Rc<str>),
 }
 
 struct Solid {
@@ -236,6 +298,82 @@ fn build(k: &mut solidcore::Kernel, r: &Recipe) -> Result<Brep, Refusal> {
             let b = skin(k, &sections, degree)?;
             place(k, b, frame)
         }
+        Recipe::Affine(m, base) => {
+            let mut b = build(k, base)?;
+            edit::affine(k, &mut b, m)?;
+            Ok(b)
+        }
+        Recipe::All(op, all) => {
+            let breps = all
+                .iter()
+                .map(|r| build(k, r))
+                .collect::<Result<Vec<_>, _>>()?;
+            edit::merged(k, breps, *op)
+        }
+        Recipe::Chamfer { base, edges, sizes } => {
+            let b = build(k, base)?;
+            edit::chamfer(k, b, edges, sizes)
+        }
+        Recipe::ChamferTwo {
+            base,
+            edge,
+            face,
+            d1,
+            d2,
+        } => {
+            let b = build(k, base)?;
+            edit::chamfer_two(k, b, *edge, *face, *d1, *d2)
+        }
+        Recipe::Setback {
+            base,
+            edges,
+            radius,
+            setback,
+        } => {
+            let b = build(k, base)?;
+            edit::fillet_setback(k, b, edges, *radius, *setback)
+        }
+        Recipe::OffsetFaces {
+            base,
+            faces,
+            distance,
+        } => {
+            let b = build(k, base)?;
+            edit::offset_faces(k, b, faces, *distance)
+        }
+        Recipe::Draft {
+            base,
+            faces,
+            origin,
+            pull,
+            angle,
+        } => {
+            let b = build(k, base)?;
+            edit::draft(k, b, faces, *origin, *pull, *angle)
+        }
+        Recipe::DeleteFaces { base, faces } => {
+            let mut b = build(k, base)?;
+            edit::delete_faces(k, &mut b, faces)?;
+            Ok(b)
+        }
+        Recipe::Split {
+            base,
+            origin,
+            normal,
+            front,
+        } => {
+            let b = build(k, base)?;
+            if is_empty(&b) {
+                return Ok(b);
+            }
+            // The plane's tool reaches past the body wherever the plane meets it.
+            let bounds = brep_bounding_box(k, &b, true).map_err(err)?;
+            let (lo, hi) = (bounds.min(), bounds.max());
+            let centre = (lo + hi) * 0.5;
+            let reach = (hi - lo).length() + (centre - p3(*origin)).length() + 1.0;
+            edit::split(k, b, *origin, *normal, reach, *front)
+        }
+        Recipe::Step(text) => exchange::read_step(k, text),
     }
 }
 
@@ -679,6 +817,11 @@ impl Solidcore {
         })
     }
 
+    /// A build of `s` of its own, for a call that changes the B-rep it reads.
+    fn fresh(&mut self, s: &Solid) -> Result<Brep, Refusal> {
+        build(&mut self.0, &s.recipe)
+    }
+
     fn boolean_of(&mut self, op: Op, a: &Solid, b: &Solid) -> Result<Solid, Refusal> {
         self.solid(Recipe::Boolean(op, a.recipe.clone(), b.recipe.clone()))
     }
@@ -700,19 +843,23 @@ impl Solidcore {
     }
 }
 
-/// Mass properties at unit density, the moments about `origin`.
-fn mass(
-    k: &solidcore::Kernel,
-    b: &mut Brep,
-    origin: Point3,
-) -> Result<solidcore::mass::integrator::properties::MassProperties, Refusal> {
+/// The sum over `b`'s material regions, so lumps that touch along an edge or at a point measure
+/// too, with the second moments about the centroid.
+fn mass(k: &solidcore::Kernel, b: &mut Brep) -> Result<EstimatedMassProperties, Refusal> {
     let store = AttributeStore::new();
     let key_of = |_| ObjectKey(0);
     let attrs = PropertyAttributes {
         store: &store,
         key_of: &key_of,
     };
-    brep_mass_properties(k, b, ACCURACY, 1.0, origin, &attrs).map_err(err)
+    let request = MassPropertyRequest {
+        density: 1.0,
+        moments_about: MomentsAbout::Centroid,
+        manifold_solid_only: false,
+        sheet_faces_area: false,
+        area_centroid_without_material: false,
+    };
+    brep_mass_properties_estimated(k, b, ACCURACY, &request, &attrs).map_err(err)
 }
 
 impl brep_protocol::Kernel for Solidcore {
@@ -777,7 +924,7 @@ impl brep_protocol::Kernel for Solidcore {
             return Ok(None);
         }
         let k = &self.0;
-        let c = mass(k, &mut s.brep.borrow_mut(), Point3::new(0.0, 0.0, 0.0))?.centroid;
+        let c = mass(k, &mut s.brep.borrow_mut())?.centroid;
         Ok(Some([c.x, c.y, c.z]))
     }
 
@@ -786,12 +933,7 @@ impl brep_protocol::Kernel for Solidcore {
             return Ok([[0.0; 3]; 3]);
         }
         let k = &self.0;
-        let b = &mut s.brep.borrow_mut();
-        let c = mass(k, b, Point3::new(0.0, 0.0, 0.0))?.centroid;
-        // About the centroid: axial moments, and the raw products yz, zx and xy.
-        let m = mass(k, b, c)?;
-        let (i, p) = (m.inertia, m.products);
-        Ok([[i.x, -p.z, -p.y], [-p.z, i.y, -p.x], [-p.y, -p.x, i.z]])
+        Ok(mass(k, &mut s.brep.borrow_mut())?.inertia_tensor())
     }
 
     fn transform(&mut self, s: &Solid, matrix: [[f64; 4]; 3]) -> Result<Solid, Refusal> {
@@ -863,7 +1005,7 @@ impl brep_protocol::Kernel for Solidcore {
         points
             .iter()
             .map(|&p| {
-                let pc = c.point_3d_classify(k, p3(p), 1e-7, false).map_err(err)?;
+                let pc = c.point_3d_classify(k, p3(p), 1e-7, true).map_err(err)?;
                 // A point in a region is in when the region is material; any other class the
                 // kernel gives is a place on the boundary: a face, an edge or a vertex.
                 Ok(match (pc.point_class(), pc.object()) {
@@ -939,32 +1081,209 @@ impl brep_protocol::Kernel for Solidcore {
             .lines())
     }
 
-    // The functions of the protocol that solidcore has one call for. The others are left out:
+    fn affine(&mut self, s: &Solid, matrix: [[f64; 4]; 3]) -> Result<Solid, Refusal> {
+        let col = |j: usize| Vec3::new(matrix[0][j], matrix[1][j], matrix[2][j]);
+        let det = col(0).dot(col(1).cross(col(2)));
+        if !det.is_finite() || det == 0.0 {
+            return Err(Refusal::invalid("a singular map"));
+        }
+        self.solid(Recipe::Affine(matrix, s.recipe.clone()))
+    }
+
+    fn union_all(&mut self, solids: &[&Solid]) -> Result<Solid, Refusal> {
+        if solids.len() < 2 {
+            return Err(Refusal::invalid("a union of many takes two solids or more"));
+        }
+        let all = solids.iter().map(|s| s.recipe.clone()).collect();
+        self.solid(Recipe::All(Op::Union, all))
+    }
+
+    fn difference_all(&mut self, target: &Solid, tools: &[&Solid]) -> Result<Solid, Refusal> {
+        if tools.is_empty() {
+            return Err(Refusal::invalid(
+                "a difference of many takes one tool or more",
+            ));
+        }
+        let mut all: Vec<_> = tools.iter().map(|s| s.recipe.clone()).collect();
+        all.push(target.recipe.clone());
+        self.solid(Recipe::All(Op::Difference, all))
+    }
+
+    fn chamfer(
+        &mut self,
+        s: &Solid,
+        edges: &[model::Vec3],
+        distance: f64,
+    ) -> Result<Solid, Refusal> {
+        self.chamfer_distances(s, edges, &vec![distance; edges.len()])
+    }
+
+    fn chamfer_distances(
+        &mut self,
+        s: &Solid,
+        edges: &[model::Vec3],
+        distances: &[f64],
+    ) -> Result<Solid, Refusal> {
+        if edges.is_empty() || distances.len() != edges.len() {
+            return Err(Refusal::invalid(
+                "a chamfer names an edge and a distance for each",
+            ));
+        }
+        self.solid(Recipe::Chamfer {
+            base: s.recipe.clone(),
+            edges: edges.to_vec(),
+            sizes: distances.to_vec(),
+        })
+    }
+
+    fn chamfer_two(
+        &mut self,
+        s: &Solid,
+        edge: model::Vec3,
+        face: model::Vec3,
+        d1: f64,
+        d2: f64,
+    ) -> Result<Solid, Refusal> {
+        self.solid(Recipe::ChamferTwo {
+            base: s.recipe.clone(),
+            edge,
+            face,
+            d1,
+            d2,
+        })
+    }
+
+    fn fillet_setback(
+        &mut self,
+        s: &Solid,
+        edges: &[model::Vec3],
+        radius: f64,
+        setback: f64,
+    ) -> Result<Solid, Refusal> {
+        self.solid(Recipe::Setback {
+            base: s.recipe.clone(),
+            edges: edges.to_vec(),
+            radius,
+            setback,
+        })
+    }
+
+    fn offset_faces(
+        &mut self,
+        s: &Solid,
+        faces: &[model::Vec3],
+        distance: f64,
+    ) -> Result<Solid, Refusal> {
+        self.solid(Recipe::OffsetFaces {
+            base: s.recipe.clone(),
+            faces: faces.to_vec(),
+            distance,
+        })
+    }
+
+    fn draft(
+        &mut self,
+        s: &Solid,
+        faces: &[model::Vec3],
+        origin: model::Vec3,
+        pull: model::Vec3,
+        angle: f64,
+    ) -> Result<Solid, Refusal> {
+        self.solid(Recipe::Draft {
+            base: s.recipe.clone(),
+            faces: faces.to_vec(),
+            origin,
+            pull,
+            angle,
+        })
+    }
+
+    fn delete_faces(&mut self, s: &Solid, faces: &[model::Vec3]) -> Result<Solid, Refusal> {
+        self.solid(Recipe::DeleteFaces {
+            base: s.recipe.clone(),
+            faces: faces.to_vec(),
+        })
+    }
+
+    fn split(
+        &mut self,
+        s: &Solid,
+        origin: model::Vec3,
+        normal: model::Vec3,
+    ) -> Result<(Solid, Solid), Refusal> {
+        let n = v3(normal).length();
+        if !n.is_finite() || n == 0.0 {
+            return Err(Refusal::invalid("the plane's normal has no length"));
+        }
+        let side = |front| Recipe::Split {
+            base: s.recipe.clone(),
+            origin,
+            normal,
+            front,
+        };
+        Ok((self.solid(side(true))?, self.solid(side(false))?))
+    }
+
+    fn read_step(&mut self, text: &str) -> Result<Solid, Refusal> {
+        self.solid(Recipe::Step(text.into()))
+    }
+
+    fn write_step(&mut self, s: &Solid) -> Result<String, Refusal> {
+        let mut b = self.fresh(s)?;
+        exchange::write_step(&mut self.0, &mut b)
+    }
+
+    fn mesh(&mut self, s: &Solid, tolerance: f64) -> Result<brep_protocol::Mesh, Refusal> {
+        if is_empty(&s.brep.borrow()) {
+            return Ok(brep_protocol::Mesh::default());
+        }
+        let mut b = self.fresh(s)?;
+        tess::mesh(&mut self.0, &mut b, tolerance)
+    }
+
+    fn display(&mut self, s: &Solid, tolerance: f64) -> Result<brep_protocol::Display, Refusal> {
+        if is_empty(&s.brep.borrow()) {
+            return Ok(brep_protocol::Display::default());
+        }
+        let mut b = self.fresh(s)?;
+        tess::display(&mut self.0, &mut b, tolerance)
+    }
+
+    fn curvature(
+        &mut self,
+        s: &Solid,
+        points: &[model::Vec3],
+    ) -> Result<Vec<Option<[f64; 2]>>, Refusal> {
+        if is_empty(&s.brep.borrow()) {
+            return Ok(vec![None; points.len()]);
+        }
+        let mut b = self.fresh(s)?;
+        query::curvatures(&mut self.0, &mut b, points)
+    }
+
+    // The functions of the protocol that SolidCraft has one call for, in solidcore, its modelling
+    // layer (solidcore-ops), its mesher (solidcore-tess), its STEP crates or its kernel boundary
+    // (solidcraft-kernel). The others are left out, so that what is scored is SolidCraft:
     //
-    // - Operations the solidcore crate did not have at 1.0.1, STEP and meshing among them (not yet
-    //   reviewed against SolidCraft v0.47.0):
-    //   fillet_g2, fillet_conic, fillet_setback, fillet_setback_g2, fillet_faces, full_round,
-    //   curvature, project, slab, offset_faces, chamfer_two, write_step, read_step, mesh, display,
-    //   draft, delete_faces, move_faces, thicken, sew, sweep_path and interference.
-    // - Operations solidcore reaches in its own way, where the protocol asks for one call of
-    //   another shape. The adapter does not assemble them, so that what is scored is solidcore.
-    //   - screw: it sweeps a profile along a path or straight across; the protocol's screw turns
-    //     the profile about an axis as it rises.
-    //   - split: its plane cut keeps one side as an open sheet; the protocol asks for both sides
-    //     as solids.
-    //   - section_area: its planar section gives curves; the protocol asks for the area they
-    //     bound.
-    //   - raycast: its ray fire gives the nearest crossing; the protocol asks for every one.
-    //   - betti: its census counts voids; the protocol also asks for pieces and tunnels.
-    //   - normal: it gives a surface's normal; the protocol asks for the solid's outward one.
-    //   - affine: its transform scales along its own axes; the protocol's affine map may shear.
-    //   - chamfer and chamfer_distances: it sizes a chamfer by a rolling ball; the protocol sizes
-    //     one by its setback.
-    //   - union_all and difference_all: its boolean of two lists gives a B-rep for each separate
-    //     solid; the protocol's boolean of many gives one solid. Mapping one onto the other is not
-    //     worked out here.
-    //   - distance and closest: its distance and closest-point queries measure to a body's
-    //     boundary; the protocol's measure to the solid, and are zero inside it.
+    // - None of those crates has a call for them: fillet_conic, fillet_faces, full_round,
+    //   move_faces, interference, betti, section_area, slab and sweep_path.
+    // - Its call answers another question than the protocol's:
+    //   - screw: its screw sweep takes B-spline profile curves only, and lifts each wall within a
+    //     tolerance of its screw surface; the protocol asks for the exact surface.
+    //   - fillet_g2: the curvature-continuous round takes one size, at the equal-area thumbweight;
+    //     the protocol also sets the radius at its middle.
+    //   - fillet_setback_g2: its set-back corner patch meets curvature-continuous rounds only
+    //     tangentially.
+    //   - thicken: it thickens a whole sheet body; the protocol thickens faces of a solid.
+    //   - sew: it sews bodies; the protocol sews the faces of a STEP file, which another call
+    //     reads.
+    //   - raycast: its ray query misses where a ray enters some faces with a notch in them, and
+    //     refuses a face on a torus, a spline, a revolution or a blend.
+    //   - normal: at a crease it gives the first face's normal; the protocol asks for none.
+    //   - closest, distance: they measure to a body's boundary; the protocol's measure to the
+    //     solid, and are zero inside it.
+    //   - project: its hidden-line drawing gives exact lines and arcs; the protocol asks for
+    //     polylines within a tolerance.
     fn supports(&self) -> Vec<String> {
         [
             "box",
@@ -994,6 +1313,22 @@ impl brep_protocol::Kernel for Solidcore {
             "section",
             "bounding_box",
             "transform",
+            "affine",
+            "union_all",
+            "difference_all",
+            "chamfer",
+            "chamfer_distances",
+            "chamfer_two",
+            "fillet_setback",
+            "offset_faces",
+            "draft",
+            "delete_faces",
+            "split",
+            "read_step",
+            "write_step",
+            "mesh",
+            "display",
+            "curvature",
         ]
         .map(String::from)
         .to_vec()

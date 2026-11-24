@@ -37,13 +37,28 @@ asks, and lists the rest as unsupported. It builds the suite's box, cylinder, ba
 with solidcore's primitives; its extrusions and revolutions as linear and rotational sweeps of
 curves, splines clamped by knot insertion first; its sweeps along the path as one rational quadratic
 B-spline; and its lofts as skins, ruled or through every section. Each is built at the origin and
-moved onto its frame. It answers the booleans, volume, area, mass properties and validity check with
-solidcore's own, and classifies points with its B-rep classifier; fillets, one radius or one per
-edge, and variable fillets with its fillet executive, on the edges the points name and no others;
+moved onto its frame. It answers the booleans, volume, area, mass properties (summed over the
+material regions, so lumps that touch measure too) and validity check with solidcore's own, and
+classifies points with its B-rep classifier, which first finds a vertex, edge or face the point lies
+on; fillets, one radius or one per edge, and variable fillets with its fillet executive, on the
+edges the points name and no others;
 offsets and shells with its offset executive; and any similarity with its transform, a mirror as a
-scale of −1. The bounding box is solidcore's tight box. A plane section is solidcore's planar
-section curves, each sampled until every chord's middle lies within the tolerance, returned as the
-pieces they are.
+scale of −1, and any other affine map with its matrix transform. The bounding box is solidcore's
+tight box. A plane section is solidcore's planar section curves, each sampled until every chord's
+middle lies within the tolerance, returned as the pieces they are. A boolean of many is solidcore's
+merge of a list of B-reps, and a face delete its defeature, the hole closed by extending the
+surfaces round it.
+
+Other functions come from SolidCraft's crates beside the kernel, each one call:
+[`src/edit.rs`](src/edit.rs) takes chamfers, set-back rounds, face offsets, drafts and splits from
+its modelling layer, solidcore-ops; [`src/exchange.rs`](src/exchange.rs) reads STEP with its kernel
+boundary's importer, solidcraft-kernel, and writes it with solidcore-step;
+[`src/tess.rs`](src/tess.rs) meshes with its mesher, solidcore-tess, on the strict path that refuses
+a face it cannot mesh; and [`src/query.rs`](src/query.rs) measures curvature with the modelling
+layer's query. A set-back round with no vertex where three of its edges meet is a plain round.
+These crates take a body as SolidCraft's portable record, and
+[`src/record.rs`](src/record.rs) converts to and from it. The modelling layer runs each call on a
+kernel of its own, at solidcore's default tolerances.
 
 This adapter began as
 [brep-conformance-solidcore](https://github.com/springcraft-ai/brep-conformance-solidcore), which
@@ -58,27 +73,43 @@ tolerance whatever the kernel options say, and `set_tolerance` only raises entit
 checker also repairs what it checks, so the adapter checks a fresh build and leaves the solid it
 measures as it was.
 
-Listed as unsupported, since solidcore 1.0.1 had no one call of the protocol's shape for it. At
-v0.47.0 the suite finds the same cases unsupported, but whether the kernel now has one call for any
-of them has not been reviewed. Where
-solidcore reaches the same end another way, the adapter does not assemble it, so that what is scored
-is solidcore:
+Listed as unsupported, since none of SolidCraft's crates has one call of the protocol's shape for
+it. Where SolidCraft reaches the same end another way, the adapter does not assemble it, so that
+what is scored is SolidCraft:
 
-- The distance between two solids, and the nearest point of a solid: its queries measure to a body's
-  boundary, where the protocol's measure to the solid and are zero inside it.
-- Chamfers by a setback: it sizes a chamfer by a rolling ball.
-- Stretches and shears: its transform scales along its own axes.
-- Every crossing of a ray: its ray fire gives the nearest.
-- Section areas, Betti numbers and outward normals: it gives section curves, a count of voids and a
-  surface's normal.
-- Splits: its plane cut keeps one side as an open sheet.
-- The booleans of many: its boolean of two lists gives a B-rep for each separate solid, and mapping
-  that onto the protocol's one solid is not worked out here.
-- Screws: it sweeps along a path or straight across, and has a helix curve to sweep along.
-- The interference of a pair, sweeps along a spline, face deletes, moves, offsets and thickens,
-  two-distance chamfers, drafts, slabs, sewing, meshes and STEP, which the solidcore crate did not
-  offer at 1.0.1. SolidCraft's repository has a STEP translator and a mesher in crates of their own
-  beside the kernel's, which this adapter does not link.
+- The distance between two solids, the nearest point of a solid, and the interference of a pair:
+  its queries measure to a body's boundary, where the protocol's measure to the solid and are zero
+  inside it, and none gives a shared volume.
+- Every crossing of a ray: its ray query misses where a ray enters some faces with a notch in them,
+  and refuses a face on a torus, a spline, a revolution or a blend.
+- Outward normals: at a crease its query gives the first face's normal, where the protocol asks
+  for none.
+- Section areas and Betti numbers: it gives section curves and a count of solids and voids.
+- Curvature-continuous rounds (`fillet_g2`, `fillet_setback_g2`): its round takes one size at the
+  equal-area thumbweight, and its set-back corner meets such rounds only tangentially.
+- Thickening: it thickens a whole sheet body, where the protocol thickens faces of a solid.
+- Sewing: it sews bodies, where the protocol sews the faces of a STEP file, which another call
+  reads.
+- Hidden-line drawings: it draws exact lines and arcs, where the protocol asks for polylines within
+  a tolerance.
+- A STEP file of several solids: its importer reads each as a body of its own, and joining them into
+  one solid set is another call.
+- Screws: its screw sweep takes B-spline profile curves only, and lifts each wall within a
+  tolerance of its screw surface, where the protocol asks for the exact surface.
+- Conic rounds, rounds between faces, full rounds, face moves, slabs and sweeps along a spline: no
+  call.
+
+Supported, with behaviour of SolidCraft's that the suite scores:
+
+- A split by a plane that misses the body gives the whole body on both sides, where the protocol
+  asks for the body on one side and nothing on the other.
+- Curvature at a crease is the nearest face's, where the protocol asks for none; in a hole its sign
+  is reversed.
+- With its boundary check, the classifier calls a point "on" up to the bodies' 1e-5 mm tolerance
+  off a face, though the adapter asks for 1e-7 mm.
+- Its record reader refuses a plane whose axes are about 5e-16 off square, as a rotation or the
+  modelling layer leaves them, so the calls through the record refuse such bodies.
+- Its STEP reader refuses the cones that its writer writes.
 
 A boolean consumes its operands, and `Brep::clone` keeps the original's geometry owners, which
 solidcore's checker rejects in the copy and in anything built from it. So the adapter keeps how each
@@ -112,12 +143,13 @@ The adapter in this repository is under either the MIT licence
 Either licence covers the adapter and nothing else. It does not cover the kernel, and nothing here
 relicenses the kernel.
 
-solidcore is a separate work under its own licence. Its crate in SolidCraft's repository declares
-`Apache-2.0`; that repository is the authority on that, not this page.
+SolidCraft's crates are separate works under their own licences. In SolidCraft's repository the
+solidcore crates declare `Apache-2.0`, and solidcraft-kernel declares `MIT OR Apache-2.0`; that
+repository is the authority on that, not this page.
 
 Building the adapter downloads SolidCraft's repository at the pinned commit and links its solidcore
-crate in, so a built adapter contains solidcore and is subject to solidcore's terms as well as this
-repository's.
+crates and solidcraft-kernel in, so a built adapter contains them and is subject to their terms as
+well as this repository's.
 
 ## Contributing
 
