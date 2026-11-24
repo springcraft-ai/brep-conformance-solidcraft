@@ -41,9 +41,21 @@ moved onto its frame. It answers the booleans, volume, area, mass properties and
 solidcore's own, and classifies points with its B-rep classifier; fillets, one radius or one per
 edge, and variable fillets with its fillet executive, on the edges the points name and no others;
 offsets and shells with its offset executive; and any similarity with its transform, a mirror as a
-scale of −1. The bounding box is solidcore's tight box. A plane section is solidcore's planar
-section curves, each sampled until every chord's middle lies within the tolerance, returned as the
-pieces they are.
+scale of −1, and any other affine map with its matrix transform. The bounding box is solidcore's
+tight box. A plane section is solidcore's planar section curves, each sampled until every chord's
+middle lies within the tolerance, returned as the pieces they are. A boolean of many is solidcore's
+merge of a list of B-reps, and a face delete its defeature, the hole closed by extending the
+surfaces round it.
+
+Other functions come from SolidCraft's crates beside the kernel, each one call:
+[`src/edit.rs`](src/edit.rs) takes chamfers, set-back rounds, face offsets, drafts and splits from
+its modelling layer, solidcore-ops; [`src/exchange.rs`](src/exchange.rs) reads STEP with its kernel
+boundary's importer, solidcraft-kernel, and writes it with solidcore-step;
+[`src/tess.rs`](src/tess.rs) meshes with its mesher, solidcore-tess, on the strict path that refuses
+a face it cannot mesh; and [`src/query.rs`](src/query.rs) measures curvature with the modelling
+layer's query. These crates take a body as SolidCraft's portable record, and
+[`src/record.rs`](src/record.rs) converts to and from it. The modelling layer runs each call on a
+kernel of its own, at solidcore's default tolerances.
 
 This adapter began as
 [brep-conformance-solidcore](https://github.com/springcraft-ai/brep-conformance-solidcore), which
@@ -58,27 +70,29 @@ tolerance whatever the kernel options say, and `set_tolerance` only raises entit
 checker also repairs what it checks, so the adapter checks a fresh build and leaves the solid it
 measures as it was.
 
-Listed as unsupported, since solidcore 1.0.1 had no one call of the protocol's shape for it. At
-v0.47.0 the suite finds the same cases unsupported, but whether the kernel now has one call for any
-of them has not been reviewed. Where
-solidcore reaches the same end another way, the adapter does not assemble it, so that what is scored
-is solidcore:
+Listed as unsupported, since none of SolidCraft's crates has one call of the protocol's shape for
+it. Where SolidCraft reaches the same end another way, the adapter does not assemble it, so that
+what is scored is SolidCraft:
 
-- The distance between two solids, and the nearest point of a solid: its queries measure to a body's
-  boundary, where the protocol's measure to the solid and are zero inside it.
-- Chamfers by a setback: it sizes a chamfer by a rolling ball.
-- Stretches and shears: its transform scales along its own axes.
-- Every crossing of a ray: its ray fire gives the nearest.
-- Section areas, Betti numbers and outward normals: it gives section curves, a count of voids and a
-  surface's normal.
-- Splits: its plane cut keeps one side as an open sheet.
-- The booleans of many: its boolean of two lists gives a B-rep for each separate solid, and mapping
-  that onto the protocol's one solid is not worked out here.
-- Screws: it sweeps along a path or straight across, and has a helix curve to sweep along.
-- The interference of a pair, sweeps along a spline, face deletes, moves, offsets and thickens,
-  two-distance chamfers, drafts, slabs, sewing, meshes and STEP, which the solidcore crate did not
-  offer at 1.0.1. SolidCraft's repository has a STEP translator and a mesher in crates of their own
-  beside the kernel's, which this adapter does not link.
+- The distance between two solids, the nearest point of a solid, and the interference of a pair:
+  its queries measure to a body's boundary, where the protocol's measure to the solid and are zero
+  inside it, and none gives a shared volume.
+- Every crossing of a ray: its ray query misses where a ray enters some faces with a notch in them,
+  and refuses a face on a torus, a spline, a revolution or a blend.
+- Outward normals: at a crease its query gives the first face's normal, where the protocol asks
+  for none.
+- Section areas and Betti numbers: it gives section curves and a count of solids and voids.
+- Curvature-continuous rounds (`fillet_g2`, `fillet_setback_g2`): its round takes one size at the
+  equal-area thumbweight, and its set-back corner meets such rounds only tangentially.
+- Thickening: it thickens a whole sheet body, where the protocol thickens faces of a solid.
+- Sewing: it sews bodies, where the protocol sews the faces of a STEP file, which another call
+  reads.
+- Hidden-line drawings: it draws exact lines and arcs, where the protocol asks for polylines within
+  a tolerance.
+- A STEP file of several solids: its importer reads each as a body of its own, and joining them into
+  one solid set is another call.
+- Conic rounds, rounds between faces, full rounds, face moves, screws, slabs and sweeps along a
+  spline: no call.
 
 A boolean consumes its operands, and `Brep::clone` keeps the original's geometry owners, which
 solidcore's checker rejects in the copy and in anything built from it. So the adapter keeps how each
