@@ -9,7 +9,7 @@ The suite lists it as `solidcraft`, at SolidCraft's release. solidcore is develo
 SolidCraft's repository, in its `solidcore/` folder, and mirrored to its own repository from there.
 The solidcore crate's version tracks the upstream release it was ported from, not the kernel's own
 changes, so it stays at 1.0.1 while the kernel moves. A SolidCraft release names one state of the
-kernel, and the adapter pins that release's commit: v0.47.0 now.
+kernel, and the adapter pins that release's commit: v0.49.0 now.
 
 ## Who maintains this
 
@@ -63,7 +63,7 @@ kernel of its own, at solidcore's default tolerances.
 This adapter began as
 [brep-conformance-solidcore](https://github.com/springcraft-ai/brep-conformance-solidcore), which
 pinned the solidcore 1.0.1 crate from crates.io. Two behaviours of solidcore showed in the results
-at 1.0.1, as its source read at that release. They have not been checked again at v0.47.0, and the
+at 1.0.1, as its source read at that release. They have not been checked again since, and the
 adapter still answers as it did. An
 offset, a shell or a mirror names its new curves under the edit's own identities while the body
 still declares the Notify scheme its checker reads, so the checker rejects every such body, though
