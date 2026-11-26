@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15,10 +21,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
+
+[[package]]
+name = "block-buffer"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
+dependencies = [
+ "hybrid-array",
+]
 
 [[package]]
 name = "brep-protocol"
@@ -38,10 +59,65 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87a0cf66fd1eb2fb7b822cb78370d82303750809bc6ba855f3f58e517d3238db"
 
 [[package]]
+name = "cadmpeg-core"
+version = "0.6.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f5b7d2834b48bd9929f8428bd511ca5e03d331d36e5f4fbcf20e93fde8e3498"
+dependencies = [
+ "flate2",
+ "memchr",
+ "roxmltree",
+ "ruzstd",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "cadmpeg-ir"
+version = "0.6.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f7ea9d8e4e61ef5a2d607d76eafd58f51813170090f89049d9ce0eedb733691"
+dependencies = [
+ "base64",
+ "cadmpeg-core",
+ "libm",
+ "serde",
+ "serde-value",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
+
+[[package]]
+name = "const-oid"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be95d4a884358a21a199689323c29e9256b4a1b315e22f183d155422041d3a9a"
+
+[[package]]
+name = "cpufeatures"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "crc32fast"
+version = "1.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd9ae8fcb3ea71b0b26338b4ffb13006bb175de8fd07921089a906ce7e5e6945"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "crossbeam-deque"
@@ -69,6 +145,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
 
 [[package]]
+name = "crypto-common"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
+dependencies = [
+ "hybrid-array",
+]
+
+[[package]]
+name = "digest"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
+dependencies = [
+ "block-buffer",
+ "const-oid",
+ "crypto-common",
+]
+
+[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -79,6 +175,17 @@ name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
+
+[[package]]
+name = "flate2"
+version = "1.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "626d4928326b646e70f65ed36fc7cf9f206bdb68a0019ee7c6b4709da4e084c4"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+ "zlib-rs",
+]
 
 [[package]]
 name = "foldhash"
@@ -119,6 +226,15 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash",
+]
+
+[[package]]
+name = "hybrid-array"
+version = "0.4.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27f864f10dfb56725ce5ce5472bc52252c8f93a4ab86327122cebf62c5f59a17"
+dependencies = [
+ "typenum",
 ]
 
 [[package]]
@@ -163,6 +279,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "miniz_oxide"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c"
+dependencies = [
+ "adler2",
+ "simd-adler32",
+]
+
+[[package]]
 name = "ntapi"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -197,6 +323,15 @@ checksum = "33fafba39597d6dc1fb709123dfa8289d39406734be322956a69f0931c73bb15"
 dependencies = [
  "libc",
  "objc2-core-foundation",
+]
+
+[[package]]
+name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -250,10 +385,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
 
 [[package]]
+name = "roxmltree"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9da7f59328b09405b181fee1018925fad50f157afb43c0c0f5c522c256dd5907"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "ruzstd"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5"
+dependencies = [
+ "twox-hash",
+]
 
 [[package]]
 name = "serde"
@@ -263,6 +416,16 @@ checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float",
+ "serde",
 ]
 
 [[package]]
@@ -299,6 +462,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b0e5c7d67bc53f435386b2130fdc900488c5703770f6d8a4633060e34288a27"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
+name = "simd-adler32"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
+
+[[package]]
 name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -313,16 +493,28 @@ checksum = "3244542535d5de959d90ec55d1b5ff0fd2bb7b1310223907d5f11932847f7b59"
 [[package]]
 name = "solidcore"
 version = "1.0.1"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "serde",
  "thiserror",
 ]
 
 [[package]]
+name = "solidcore-cadir"
+version = "0.1.0"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
+dependencies = [
+ "cadmpeg-ir",
+ "solidcore",
+ "solidcore-ops",
+ "solidcore-record",
+ "solidcore-step",
+]
+
+[[package]]
 name = "solidcore-convert"
 version = "0.1.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "solidcore",
  "solidcore-record",
@@ -331,7 +523,7 @@ dependencies = [
 [[package]]
 name = "solidcore-ops"
 version = "0.1.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "serde",
  "solidcore",
@@ -342,7 +534,7 @@ dependencies = [
 [[package]]
 name = "solidcore-record"
 version = "0.1.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "serde",
  "serde_json",
@@ -352,7 +544,7 @@ dependencies = [
 [[package]]
 name = "solidcore-step"
 version = "0.1.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "solidcore",
  "solidcore-convert",
@@ -363,7 +555,7 @@ dependencies = [
 [[package]]
 name = "solidcore-tess"
 version = "0.1.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "rayon",
  "serde",
@@ -390,12 +582,10 @@ dependencies = [
 
 [[package]]
 name = "solidcraft-geom"
-version = "0.49.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+version = "0.50.0"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "serde",
- "solidcore",
- "solidcore-ops",
  "solidcore-record",
  "solidcore-tess",
  "thiserror",
@@ -403,13 +593,15 @@ dependencies = [
 
 [[package]]
 name = "solidcraft-kernel"
-version = "0.49.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+version = "0.50.0"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
+ "cadmpeg-ir",
  "log",
  "rayon",
  "serde",
  "serde_json",
+ "solidcore-cadir",
  "solidcore-ops",
  "solidcore-record",
  "solidcore-step",
@@ -426,9 +618,10 @@ dependencies = [
 
 [[package]]
 name = "solidcraft-kernel-api"
-version = "0.49.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+version = "0.50.0"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
+ "cadmpeg-ir",
  "serde",
  "solidcore-record",
  "thiserror",
@@ -436,8 +629,8 @@ dependencies = [
 
 [[package]]
 name = "solidcraft-profile"
-version = "0.49.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+version = "0.50.0"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "serde_json",
  "web-time",
@@ -445,8 +638,8 @@ dependencies = [
 
 [[package]]
 name = "solidcraft-smlib"
-version = "0.49.0"
-source = "git+https://github.com/tangency-labs/solidcraft?rev=10e6242c3a94e942c8fc11e78965ef1cd21e4856#10e6242c3a94e942c8fc11e78965ef1cd21e4856"
+version = "0.50.0"
+source = "git+https://github.com/tangency-labs/solidcraft?rev=eeb366c2ff276987a15c043d63b9072b58274703#eeb366c2ff276987a15c043d63b9072b58274703"
 dependencies = [
  "log",
  "serde_json",
@@ -524,6 +717,18 @@ dependencies = [
  "quote",
  "syn 3.0.10",
 ]
+
+[[package]]
+name = "twox-hash"
+version = "2.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
+
+[[package]]
+name = "typenum"
+version = "1.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "unicode-ident"
@@ -716,6 +921,12 @@ checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
 dependencies = [
  "windows-link",
 ]
+
+[[package]]
+name = "zlib-rs"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa76918995d776d9dd34d371030be228d021137449771493d56e29f77e4148ac"
 
 [[package]]
 name = "zmij"

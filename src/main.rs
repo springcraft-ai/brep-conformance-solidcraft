@@ -45,9 +45,9 @@ use solidcore::topology::brep::validation::{CheckLevel, check_brep};
 use solidcore::{Brep, Point3, Vec3};
 use solidcore::{EdgeId, FaceId};
 
-/// https://github.com/tangency-labs/solidcraft/releases/tag/v0.49.0, the `solidcore` rev in Cargo.toml.
+/// https://github.com/tangency-labs/solidcraft/releases/tag/v0.50.0, the `solidcore` rev in Cargo.toml.
 /// The solidcore crate's own version does not move with SolidCraft's releases, so this names them.
-const VERSION: &str = "0.49.0";
+const VERSION: &str = "0.50.0";
 
 /// The integrator's accuracy: relative, as solidcore's own tests use.
 const ACCURACY: f64 = 1e-7;

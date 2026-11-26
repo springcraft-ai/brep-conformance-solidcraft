@@ -15,6 +15,9 @@ pub fn convert_err(e: solidcore_convert::brep::Unsupported) -> Refusal {
 pub fn ops_err(e: solidcore_ops::Error) -> Refusal {
     match e {
         solidcore_ops::Error::Argument => Refusal::invalid(e.to_string()),
+        // Faces moved whose tangent blends the kernel cannot take off and put back, or carry on
+        // exactly: a case its face offset has not built.
+        solidcore_ops::Error::BlendsNotFollowed { .. } => Refusal::unsupported(e.to_string()),
         _ => Refusal::failed(format!("{e:?}")),
     }
 }

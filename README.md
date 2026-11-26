@@ -9,7 +9,7 @@ The suite lists it as `solidcraft`, at SolidCraft's release. solidcore is develo
 SolidCraft's repository, in its `solidcore/` folder, and mirrored to its own repository from there.
 The solidcore crate's version tracks the upstream release it was ported from, not the kernel's own
 changes, so it stays at 1.0.1 while the kernel moves. A SolidCraft release names one state of the
-kernel, and the adapter pins that release's commit: v0.49.0 now.
+kernel, and the adapter pins that release's commit: v0.50.0 now.
 
 ## Who maintains this
 
@@ -55,7 +55,9 @@ its modelling layer, solidcore-ops; [`src/exchange.rs`](src/exchange.rs) reads S
 boundary's importer, solidcraft-kernel, and writes it with solidcore-step;
 [`src/tess.rs`](src/tess.rs) meshes with its mesher, solidcore-tess, on the strict path that refuses
 a face it cannot mesh; and [`src/query.rs`](src/query.rs) measures curvature with the modelling
-layer's query. A set-back round with no vertex where three of its edges meet is a plain round.
+layer's query. A set-back round with no vertex where three of its edges meet is a plain round. A face offset
+that the modelling layer refuses because the tangent blends on the moved faces cannot follow them
+is unsupported, as its refusal says.
 These crates take a body as SolidCraft's portable record, and
 [`src/record.rs`](src/record.rs) converts to and from it. The modelling layer runs each call on a
 kernel of its own, at solidcore's default tolerances.
