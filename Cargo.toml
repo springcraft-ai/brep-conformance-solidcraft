@@ -8,14 +8,14 @@ publish = false
 
 [dependencies]
 brep-protocol = "2"
-# https://github.com/tangency-labs/solidcraft/releases/tag/v0.50.0, with `VERSION` in src/main.rs:
+# https://github.com/tangency-labs/solidcraft/releases/tag/v0.51.2, with `VERSION` in src/main.rs:
 # the solidcore kernel as SolidCraft ships it, in its solidcore/ folder.
-solidcore = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
+solidcore = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }
 # SolidCraft's crates beside the kernel, at the same commit: its modelling layer, the record the
 # layers pass bodies in and its conversion, STEP, the mesher, and its kernel boundary's STEP reader.
-solidcore-convert = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
-solidcore-ops = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
-solidcore-record = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
-solidcore-step = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
-solidcore-tess = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
-solidcraft-kernel = { git = "https://github.com/tangency-labs/solidcraft", rev = "eeb366c2ff276987a15c043d63b9072b58274703" }
+solidcore-convert = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }
+solidcore-ops = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }
+solidcore-record = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }
+solidcore-step = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }
+solidcore-tess = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }
+solidcraft-kernel = { git = "https://github.com/tangency-labs/solidcraft", rev = "23e6bdd82ca01af9eef4c38c78473ea1e7b0b1d2" }

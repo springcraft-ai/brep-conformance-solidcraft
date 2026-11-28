@@ -42,6 +42,7 @@ pub fn write_step(k: &mut Kernel, b: &mut Brep) -> Result<String, Refusal> {
         record: &record,
         color: None,
         faces: Vec::new(),
+        layer: String::new(),
     };
     bodies(vec![body], &Header::default())
         .map_err(|e| Refusal::failed(format!("the STEP writer refused the body: {e}")))
