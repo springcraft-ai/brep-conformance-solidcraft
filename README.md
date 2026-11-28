@@ -9,7 +9,7 @@ The suite lists it as `solidcraft`, at SolidCraft's release. solidcore is develo
 SolidCraft's repository, in its `solidcore/` folder, and mirrored to its own repository from there.
 The solidcore crate's version tracks the upstream release it was ported from, not the kernel's own
 changes, so it stays at 1.0.1 while the kernel moves. A SolidCraft release names one state of the
-kernel, and the adapter pins that release's commit: v0.50.0 now.
+kernel, and the adapter pins that release's commit: v0.51.2 now.
 
 ## Who maintains this
 
